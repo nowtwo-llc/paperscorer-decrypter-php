@@ -62,6 +62,16 @@ class DecrypterTest extends TestCase
         $decrypter->decrypt();
     }
 
+    public function testDecryptThrowsOnShortPayload(): void
+    {
+        $decrypter = new Decrypter(self::TEST_KEY);
+        $decrypter->setEncryptedContent('too-short');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Encrypted content is too short.');
+        $decrypter->decrypt();
+    }
+
     public function testDecryptThrowsOnWrongKey(): void
     {
         $decrypter = new Decrypter('wrong-key');
@@ -84,6 +94,33 @@ class DecrypterTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $decrypter->decrypt();
+    }
+
+    // ---------------------------------------------------------------
+    // encrypt() tests
+    // ---------------------------------------------------------------
+
+    public function testEncryptProducesDecryptablePayload(): void
+    {
+        $decrypter = new Decrypter(self::TEST_KEY);
+
+        $payload = $decrypter->encrypt(self::TEST_PLAINTEXT);
+
+        $this->assertSame(
+            self::TEST_PLAINTEXT,
+            $decrypter->setEncryptedContent($payload)->decrypt()
+        );
+    }
+
+    public function testEncryptProducesDifferentPayloadsForSameInput(): void
+    {
+        $decrypter = new Decrypter(self::TEST_KEY);
+
+        // A fresh random IV and salt are generated each call, so payloads differ
+        $this->assertNotSame(
+            $decrypter->encrypt(self::TEST_PLAINTEXT),
+            $decrypter->encrypt(self::TEST_PLAINTEXT)
+        );
     }
 
     // ---------------------------------------------------------------
@@ -114,32 +151,22 @@ class DecrypterTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // Round-trip test
+    // Round-trip tests
     // ---------------------------------------------------------------
 
     public function testRoundTripEncryptDecrypt(): void
     {
-        $key = 'round-trip-key';
+        $decrypter = new Decrypter('round-trip-key');
         $plaintext = '{"user":"alice","role":"admin"}';
 
-        // Encrypt using the same protocol the Decrypter expects
-        $iv = random_bytes(16);
-        $salt = random_bytes(21);
-        $secretKey = substr(hash('sha256', $key . $salt, true), 0, 16);
-        $cipherText = openssl_encrypt($plaintext, 'AES-128-CBC', $secretKey, OPENSSL_RAW_DATA, $iv);
+        $payload = $decrypter->encrypt($plaintext);
 
-        $payload = base64_encode($iv) . base64_encode($salt) . base64_encode($cipherText);
-
-        // Decrypt
-        $decrypter = new Decrypter($key);
-        $decrypter->setEncryptedContent($payload);
-
-        $this->assertSame($plaintext, $decrypter->decrypt());
+        $this->assertSame($plaintext, $decrypter->setEncryptedContent($payload)->decrypt());
     }
 
     public function testRoundTripWithDifferentPayloadSizes(): void
     {
-        $key = 'payload-size-test';
+        $decrypter = new Decrypter('payload-size-test');
 
         $payloads = [
             '',                    // empty string
@@ -148,17 +175,13 @@ class DecrypterTest extends TestCase
         ];
 
         foreach ($payloads as $plaintext) {
-            $iv = random_bytes(16);
-            $salt = random_bytes(21);
-            $secretKey = substr(hash('sha256', $key . $salt, true), 0, 16);
-            $cipherText = openssl_encrypt($plaintext, 'AES-128-CBC', $secretKey, OPENSSL_RAW_DATA, $iv);
+            $payload = $decrypter->encrypt($plaintext);
 
-            $payload = base64_encode($iv) . base64_encode($salt) . base64_encode($cipherText);
-
-            $decrypter = new Decrypter($key);
-            $decrypter->setEncryptedContent($payload);
-
-            $this->assertSame($plaintext, $decrypter->decrypt(), "Failed for plaintext of length " . strlen($plaintext));
+            $this->assertSame(
+                $plaintext,
+                $decrypter->setEncryptedContent($payload)->decrypt(),
+                'Failed for plaintext of length ' . strlen($plaintext)
+            );
         }
     }
 }

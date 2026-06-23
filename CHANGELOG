@@ -1,3 +1,13 @@
+## 1.2.0 (2026-06-23)
+
+* Raised the minimum PHP version from 7.4 to 8.0.
+* Added a public `encrypt()` method that produces a payload `decrypt()` can read back (fresh random IV and salt per call).
+* Added an `InvalidArgumentException` when `decrypt()` is called with a payload too short to contain an IV and salt.
+* Extracted the cipher, hash, and segment-length magic numbers into named class constants with an explanatory comment.
+* Extracted key derivation into a shared private `deriveKey()` helper used by both `encrypt()` and `decrypt()`.
+* Refactored the test suite to exercise the public `encrypt()` method instead of inlining the encryption protocol.
+* Documented the encryption scheme (cipher, key derivation, payload table) and added a security note to the README.
+
 ## 1.1.0 (2026-01-28)
 
 * Added `declare(strict_types=1)` for runtime type enforcement.

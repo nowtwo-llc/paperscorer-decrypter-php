@@ -3,7 +3,11 @@
     "allow": [
       "Bash(tree:*)",
       "Bash(vendor/bin/phpunit:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(php -l src/Decrypter.php)",
+      "Bash(composer validate *)",
+      "Bash(composer update *)",
+      "Bash(echo \"---EXIT $?---\")"
     ]
   }
 }
